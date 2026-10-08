@@ -1,0 +1,202 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-serif: var(--font-serif-display), Georgia, serif;
+
+  --color-paper: #f7f6f2;
+  --color-surface: #ffffff;
+  --color-ink: #171510;
+  --color-ink-soft: #49463d;
+  --color-line: #e7e4dc;
+  --color-line-strong: #d8d4c8;
+  --color-brand: #e8930c;
+  --color-brand-deep: #b46908;
+  --color-brand-ink: #463006;
+  --color-mint: #0d9488;
+  --color-night: #12100b;
+
+  --radius-card: 18px;
+
+  --shadow-soft: 0 1px 2px rgba(23, 21, 16, 0.05), 0 8px 32px -16px rgba(23, 21, 16, 0.18);
+  --shadow-lift: 0 2px 4px rgba(23, 21, 16, 0.06), 0 18px 48px -18px rgba(23, 21, 16, 0.28);
+  --shadow-amber: 0 8px 28px -10px rgba(232, 147, 12, 0.55);
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: rgba(232, 147, 12, 0.28);
+}
+
+/* Refined scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #c9c4b6 transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: #d8d4c8;
+  border-radius: 999px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Landing reveal animation */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.reveal {
+  opacity: 0;
+}
+.reveal.is-visible {
+  animation: rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes ticker {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+.animate-ticker {
+  animation: ticker 32s linear infinite;
+}
+
+@keyframes float-slow {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+.animate-float-slow {
+  animation: float-slow 7s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.8);
+  }
+}
+.pulse-dot {
+  animation: pulse-dot 1.6s ease-in-out infinite;
+}
+
+/* Chat bubble entrance */
+@keyframes bubble-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.bubble-in {
+  animation: bubble-in 0.25s ease-out;
+}
+
+/* Chart draw-on */
+@keyframes draw-line {
+  from {
+    stroke-dashoffset: 2400;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.chart-line-draw {
+  stroke-dasharray: 2400;
+  animation: draw-line 1.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Grain overlay for dark hero */
+.noise::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.5;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.32'/%3E%3C/svg%3E");
+}
+
+/* Skeleton shimmer */
+@keyframes shimmer {
+  from {
+    background-position: -200px 0;
+  }
+  to {
+    background-position: 200px 0;
+  }
+}
+.skeleton {
+  background: linear-gradient(90deg, #eceae3 25%, #f5f3ec 50%, #eceae3 75%);
+  background-size: 400px 100%;
+  animation: shimmer 1.4s infinite linear;
+}
+
+/* Bottom safe area for fixed bottom navigation */
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/*
+ * Bottom-sheet modals: always keep real breathing room below the last
+ * control, even on devices with no safe-area inset (env() returns 0 there,
+ * which previously collapsed the sheet's bottom padding to nothing).
+ */
+.sheet-bottom {
+  padding-bottom: max(2rem, env(safe-area-inset-bottom, 0px));
+}
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
