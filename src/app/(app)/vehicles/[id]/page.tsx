@@ -22,6 +22,7 @@ import { Avatar, Badge, Card, EmptyState } from "@/components/ui";
 import { FuelChart, type DayPoint } from "@/components/FuelChart";
 import { FuelEntryRow } from "@/components/app/FuelEntryRow";
 import { AssignDriver } from "@/components/app/AssignDriver";
+import { DeleteVehicleButton } from "@/components/app/DeleteVehicleButton";
 
 export const metadata: Metadata = { title: "Vehicle" };
 
@@ -169,14 +170,31 @@ export default async function VehicleDetailPage({
             )}
           </span>
 
+          {/* Owner Actions: Assign Driver + Delete Vehicle */}
           {user.role === "owner" && (
-            <span className="ml-auto">
+            <div className="ml-auto flex flex-wrap items-center gap-2">
               <AssignDriver
                 vehicleId={vehicle.id}
                 currentDriverId={vehicle.driverId}
                 drivers={ownerDriverList}
               />
-            </span>
+              <DeleteVehicleButton
+                vehicleId={vehicle.id}
+                vehicleName={vehicle.name}
+                redirectTo="/vehicles"
+                labels={{
+                  delete: d["vehicles.delete"] ?? "Delete",
+                  confirm:
+                    d["vehicles.deleteConfirm"] ??
+                    'Delete vehicle "{name}"? This cannot be undone.',
+                  deleting: d["common.deleting"] ?? "Deleting…",
+                  blocked:
+                    d["vehicles.deleteBlocked"] ??
+                    "This vehicle has fuel entries and cannot be deleted.",
+                  error: d["common.error"] ?? "Something went wrong.",
+                }}
+              />
+            </div>
           )}
         </div>
       </Card>

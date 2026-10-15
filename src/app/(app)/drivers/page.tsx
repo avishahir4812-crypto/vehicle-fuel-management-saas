@@ -9,6 +9,7 @@ import { formatPhone } from "@/lib/utils";
 import { Avatar, Badge, EmptyState } from "@/components/ui";
 import { AddDriverButton } from "@/components/app/AddDriverButton";
 import { DriverResetButton } from "@/components/app/DriverResetButton";
+import { DeleteDriverButton } from "@/components/app/DeleteDriverButton"; // 👈 NEW
 
 export const metadata: Metadata = { title: "Drivers" };
 
@@ -64,6 +65,7 @@ export default async function DriversPage() {
                 </Link>
               </div>
 
+              {/* Assigned vehicles */}
               <div className="mt-4 flex flex-wrap items-center gap-1.5 border-t border-line pt-4">
                 {driver.assignedVehicles.length === 0 ? (
                   <Badge tone="neutral">{d["drivers.noVehicle"]}</Badge>
@@ -79,6 +81,29 @@ export default async function DriversPage() {
                     ))}
                   </>
                 )}
+              </div>
+
+              {/* 👇 Actions row: Reset + Delete */}
+              <div className="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-line pt-4">
+                <DriverResetButton
+                  driverId={driver.id}
+                  driverName={driver.name}
+                />
+                <DeleteDriverButton
+                  driverId={driver.id}
+                  driverName={driver.name}
+                  labels={{
+                    delete: d["drivers.delete"] ?? "Delete",
+                    confirm:
+                      d["drivers.deleteConfirm"] ??
+                      'Delete driver "{name}"? Their login sessions will end immediately.',
+                    deleting: d["common.deleting"] ?? "Deleting…",
+                    blocked:
+                      d["drivers.deleteBlocked"] ??
+                      "This driver has fuel entries and cannot be deleted.",
+                    error: d["common.error"] ?? "Something went wrong.",
+                  }}
+                />
               </div>
             </div>
           ))}

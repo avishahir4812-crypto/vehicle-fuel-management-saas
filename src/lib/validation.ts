@@ -116,3 +116,14 @@ export const profileSchema = z.object({
 export const localeSchema = z.object({
   locale: z.enum(["en", "hi", "gu"]),
 });
+/* ---------- route params validation ---------- */
+
+export const idParamSchema = z.string().uuid("invalid_id");
+
+export const updateVehicleSchema = vehicleSchema.partial();
+
+export const updateDriverSchema = z.object({
+  name: z.string().trim().min(2).max(80).optional(),
+  phone: phoneField.optional(),
+  email: emailField,
+});
