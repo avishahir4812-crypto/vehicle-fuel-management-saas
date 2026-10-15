@@ -39,6 +39,7 @@ export default async function VehicleDetailPage({
   const { id } = await params;
   const { month } = await searchParams;
   const { locale, d } = await getServerLocale();
+  const dict = d as Record<string, string>; // 👈 TypeScript fix
   const tag = locale === "hi" ? "hi-IN" : locale === "gu" ? "gu-IN" : "en-IN";
 
   const vehicle = await getVehicleById(id);
@@ -183,15 +184,15 @@ export default async function VehicleDetailPage({
                 vehicleName={vehicle.name}
                 redirectTo="/vehicles"
                 labels={{
-                  delete: d["vehicles.delete"] ?? "Delete",
+                  delete: dict["vehicles.delete"] ?? "Delete",
                   confirm:
-                    d["vehicles.deleteConfirm"] ??
+                    dict["vehicles.deleteConfirm"] ??
                     'Delete vehicle "{name}"? This cannot be undone.',
-                  deleting: d["common.deleting"] ?? "Deleting…",
+                  deleting: dict["common.deleting"] ?? "Deleting…",
                   blocked:
-                    d["vehicles.deleteBlocked"] ??
+                    dict["vehicles.deleteBlocked"] ??
                     "This vehicle has fuel entries and cannot be deleted.",
-                  error: d["common.error"] ?? "Something went wrong.",
+                  error: dict["common.error"] ?? "Something went wrong.",
                 }}
               />
             </div>

@@ -9,7 +9,7 @@ import { formatPhone } from "@/lib/utils";
 import { Avatar, Badge, EmptyState } from "@/components/ui";
 import { AddDriverButton } from "@/components/app/AddDriverButton";
 import { DriverResetButton } from "@/components/app/DriverResetButton";
-import { DeleteDriverButton } from "@/components/app/DeleteDriverButton"; // 👈 NEW
+import { DeleteDriverButton } from "@/components/app/DeleteDriverButton";
 
 export const metadata: Metadata = { title: "Drivers" };
 
@@ -18,6 +18,7 @@ export default async function DriversPage() {
   if (!user || user.role !== "owner") notFound();
 
   const { d } = await getServerLocale();
+  const dict = d as Record<string, string>; // 👈 TypeScript fix for dynamic keys
   const drivers = await getCompanyDrivers(user.companyId);
 
   return (
@@ -83,7 +84,7 @@ export default async function DriversPage() {
                 )}
               </div>
 
-              {/* 👇 Actions row: Reset + Delete */}
+              {/* Actions row: Reset + Delete */}
               <div className="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-line pt-4">
                 <DriverResetButton
                   driverId={driver.id}
@@ -93,15 +94,15 @@ export default async function DriversPage() {
                   driverId={driver.id}
                   driverName={driver.name}
                   labels={{
-                    delete: d["drivers.delete"] ?? "Delete",
+                    delete: dict["drivers.delete"] ?? "Delete",
                     confirm:
-                      d["drivers.deleteConfirm"] ??
+                      dict["drivers.deleteConfirm"] ??
                       'Delete driver "{name}"? Their login sessions will end immediately.',
-                    deleting: d["common.deleting"] ?? "Deleting…",
+                    deleting: dict["common.deleting"] ?? "Deleting…",
                     blocked:
-                      d["drivers.deleteBlocked"] ??
+                      dict["drivers.deleteBlocked"] ??
                       "This driver has fuel entries and cannot be deleted.",
-                    error: d["common.error"] ?? "Something went wrong.",
+                    error: dict["common.error"] ?? "Something went wrong.",
                   }}
                 />
               </div>
