@@ -21,15 +21,24 @@ export function AssignDriver({
   const [saving, setSaving] = useState(false);
 
   async function assign(next: string) {
+    const prev = value; // ← rollback ke liye
     setValue(next);
     setSaving(true);
     try {
-      await fetch(`/api/vehicles/${vehicleId}`, {
+      const res = await fetch(`/api/vehicles/${vehicleId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ driverId: next === "" ? null : next }),
       });
+
+      if (!res.ok) {
+        setValue(prev); // ← fail pe wapas purana value
+        return;
+      }
+
       router.refresh();
+    } catch {
+      setValue(prev); // ← network error pe bhi rollback
     } finally {
       setSaving(false);
     }
