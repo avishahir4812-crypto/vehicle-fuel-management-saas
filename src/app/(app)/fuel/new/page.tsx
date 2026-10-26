@@ -79,7 +79,8 @@ export default async function NewFuelPage({
       <div className="mx-auto max-w-lg">
         <EmptyState
           icon={<Truck className="size-6" />}
-          title={isOwner ? d["common.notAuthorized"] : d["fuel.notAssigned"]}
+          // ✅ AB (Fixed):
+title={isOwner ? "Not Authorized" : d["fuel.notAssigned"]}
           action={
             <Link
               href="/vehicles"
