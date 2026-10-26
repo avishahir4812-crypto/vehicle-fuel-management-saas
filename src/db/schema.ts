@@ -137,9 +137,14 @@ export const fuelEntries = pgTable(
     vehicleId: uuid("vehicle_id")
       .notNull()
       .references(() => vehicles.id, { onDelete: "cascade" }),
-    driverId: uuid("driver_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+    
+    // UPDATED: Nullable so owners can add fuel to unassigned vehicles
+    driverId: uuid("driver_id").references(() => users.id, { onDelete: "set null" }),
+
+    // ADDED: Audit Fields to track who actually filled fuel (Owner or Driver)
+    loggedById: uuid("logged_by_id").references(() => users.id, { onDelete: "set null" }),
+    loggedByRole: text("logged_by_role").default("driver"),
+
     fuelRate: numeric("fuel_rate", { precision: 10, scale: 2 }).notNull(),
     quantityLiters: numeric("quantity_liters", { precision: 10, scale: 2 }).notNull(),
     totalAmount: numeric("total_amount", { precision: 12, scale: 2 }).notNull(),

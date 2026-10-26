@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, ChevronRight, Truck } from "lucide-react";
 import { getSessionUser } from "@/lib/auth";
-import { getDriverVehicles, getVehicleById } from "@/lib/queries";
+import { getCompanyVehicles, getDriverVehicles, getVehicleById } from "@/lib/queries";
 import { getServerLocale } from "@/i18n/server";
 import { EmptyState } from "@/components/ui";
 import { FuelEntryForm } from "@/components/app/FuelEntryForm";
@@ -17,26 +17,29 @@ export default async function NewFuelPage({
 }) {
   const user = await getSessionUser();
   if (!user) notFound();
-  if (user.role !== "driver") redirect("/dashboard");
 
   const { vehicle: vehicleId } = await searchParams;
   const { d } = await getServerLocale();
+  const isOwner = user.role === "owner";
 
-  const vehicles = await getDriverVehicles(user.id);
+  // Owner gets all company vehicles, driver gets assigned vehicles
+  const vehicles = isOwner
+    ? await getCompanyVehicles(user.companyId)
+    : await getDriverVehicles(user.id);
 
   if (vehicles.length === 0) {
     return (
       <div className="mx-auto max-w-lg">
         <EmptyState
           icon={<Truck className="size-6" />}
-          title={d["dash.noVehiclesDriver"]}
-          desc={d["dash.noVehiclesDriverDesc"]}
+          title={isOwner ? d["vehicles.noVehicles"] : d["dash.noVehiclesDriver"]}
+          desc={isOwner ? d["vehicles.noVehiclesDesc"] : d["dash.noVehiclesDriverDesc"]}
         />
       </div>
     );
   }
 
-  // No vehicle chosen yet → auto-select the single one, else show a picker.
+  // No vehicle selected → auto-select if 1 vehicle, or show selection list
   if (!vehicleId) {
     if (vehicles.length === 1) redirect(`/fuel/new?vehicle=${vehicles[0].id}`);
     return (
@@ -67,12 +70,16 @@ export default async function NewFuelPage({
   }
 
   const vehicle = await getVehicleById(vehicleId);
-  if (!vehicle || vehicle.driverId !== user.id) {
+  const isAuthorized = isOwner 
+    ? vehicle?.companyId === user.companyId 
+    : vehicle?.driverId === user.id;
+
+  if (!vehicle || !isAuthorized) {
     return (
       <div className="mx-auto max-w-lg">
         <EmptyState
           icon={<Truck className="size-6" />}
-          title={d["fuel.notAssigned"]}
+          title={isOwner ? d["common.notAuthorized"] : d["fuel.notAssigned"]}
           action={
             <Link
               href="/vehicles"

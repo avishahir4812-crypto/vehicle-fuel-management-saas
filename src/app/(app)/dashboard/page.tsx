@@ -136,7 +136,16 @@ export default async function DashboardPage() {
           </h1>
           <p className="mt-1 text-[15px] text-ink-soft">{d["dash.ownerSub"]}</p>
         </div>
-        <AddVehicleButton />
+        <div className="flex flex-wrap items-center gap-3">
+          <Link
+            href="/fuel/new"
+            className="inline-flex h-11 items-center gap-2 rounded-xl bg-brand px-5 text-sm font-bold text-night shadow-amber transition hover:bg-brand-deep hover:text-white"
+          >
+            <Fuel className="size-4" />
+            {d["dash.quickFuel"] || "Log Fuel"}
+          </Link>
+          <AddVehicleButton />
+        </div>
       </header>
 
       <section className="mt-8 grid grid-cols-2 gap-4 lg:grid-cols-4">

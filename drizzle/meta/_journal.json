@@ -8,6 +8,13 @@
       "when": 1790915905515,
       "tag": "0000_parallel_dreaming_celestial",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1793001337746,
+      "tag": "0001_wakeful_pride",
+      "breakpoints": true
     }
   ]
 }
