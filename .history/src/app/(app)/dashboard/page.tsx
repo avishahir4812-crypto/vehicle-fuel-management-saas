@@ -240,8 +240,8 @@ export default async function DashboardPage() {
                   </p>
                 </div>
                 <span className="hidden items-center gap-1.5 text-xs font-semibold text-ink-soft sm:flex">
-                  <Avatar name={e.driverName} id={e.driverId} size="sm" />
-                  {e.driverName}
+                  <Avatar name={e.driverName ?? "Owner"} id={e.driverId ?? "owner"} size="sm" />
+                  {e.driverName ?? "Owner"}
                 </span>
                 <p className="text-sm font-bold text-ink">{formatINR(e.totalAmount, true)}</p>
               </Link>
