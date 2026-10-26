@@ -1,250 +1,286 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import {
-  AlertTriangle,
-  ArrowRight,
-  Droplets,
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
   Fuel,
-  IndianRupee,
-  Receipt,
-  TrendingDown,
+  Gauge,
   TrendingUp,
-  Truck,
 } from "lucide-react";
+import { db } from "@/db";
+import { users } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import { getSessionUser } from "@/lib/auth";
-import { getDriverOverview, getOwnerOverview } from "@/lib/queries";
+import { getAssignableDrivers, getVehicleAnalytics, getVehicleById } from "@/lib/queries";
 import { getServerLocale } from "@/i18n/server";
-import { formatDate, formatINR, formatLiters } from "@/lib/utils";
-import { Avatar, Badge, EmptyState } from "@/components/ui";
-import { StatCard } from "@/components/app/StatCard";
-import { VehicleCard } from "@/components/app/VehicleCard";
-import { AddVehicleButton } from "@/components/app/AddVehicleButton";
+import { VEHICLE_IMAGES } from "@/lib/media";
+import { formatINR, formatLiters } from "@/lib/utils";
+import { Avatar, Badge, Card, EmptyState } from "@/components/ui";
+import { FuelChart, type DayPoint } from "@/components/FuelChart";
+import { FuelEntryRow } from "@/components/app/FuelEntryRow";
+import { AssignDriver } from "@/components/app/AssignDriver";
+import { DeleteVehicleButton } from "@/components/app/DeleteVehicleButton";
 
-export const metadata: Metadata = { title: "Dashboard" };
+export const metadata: Metadata = { title: "Vehicle" };
 
-function TrendChip({ current, previous, label }: { current: number; previous: number; label: string }) {
-  if (previous <= 0) return null;
-  const diff = ((current - previous) / previous) * 100;
-  const up = diff >= 0;
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-1 text-[11px] font-bold">
-      {up ? <TrendingUp className="size-3 text-emerald-400" /> : <TrendingDown className="size-3 text-red-400" />}
-      <span className={up ? "text-emerald-300" : "text-red-300"}>
-        {Math.abs(diff).toFixed(0)}%
-      </span>
-      <span className="text-white/40">{label}</span>
-    </span>
-  );
-}
-
-export default async function DashboardPage() {
+export default async function VehicleDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ month?: string }>;
+}) {
   const user = await getSessionUser();
   if (!user) notFound();
+
+  const { id } = await params;
+  const { month } = await searchParams;
   const { locale, d } = await getServerLocale();
+  const dict = d as Record<string, string>; // 👈 TypeScript fix
+  const tag = locale === "hi" ? "hi-IN" : locale === "gu" ? "gu-IN" : "en-IN";
 
-  /* ------------------------------ DRIVER ------------------------------ */
-  if (user.role === "driver") {
-    const ov = await getDriverOverview(user.id);
-    return (
-      <div>
-        <header className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-3xl">
-              {d["dash.greeting"].replace("{name}", user.name.split(" ")[0])}
-            </h1>
-            <p className="mt-1 text-[15px] text-ink-soft">{d["dash.driverSub"]}</p>
-          </div>
-          {ov.cards.length > 0 && (
-            <Link
-              href={`/fuel/new?vehicle=${ov.cards[0].id}`}
-              className="inline-flex h-11 items-center gap-2 rounded-xl bg-brand px-5 text-sm font-bold text-night shadow-amber transition hover:bg-brand-deep hover:text-white"
-            >
-              <Fuel className="size-4" />
-              {d["dash.quickFuel"]}
-            </Link>
-          )}
-        </header>
+  const vehicle = await getVehicleById(id);
+  if (!vehicle) notFound();
 
-        <section className="mt-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <StatCard accent icon={<Truck className="size-5" />} label={d["dash.myVehicles"]} value={String(ov.cards.length)} />
-          <StatCard icon={<IndianRupee className="size-5" />} label={d["dash.spendMonth"]} value={formatINR(ov.monthSpend)} />
-          <StatCard icon={<Droplets className="size-5" />} label={d["dash.fuelMonth"]} value={formatLiters(ov.monthLiters)} />
-          <StatCard icon={<Receipt className="size-5" />} label={d["dash.entriesMonth"]} value={String(ov.monthEntries)} />
-        </section>
+  const canView =
+    vehicle.companyId === user.companyId &&
+    (user.role === "owner" || vehicle.driverId === user.id);
+  if (!canView) notFound();
 
-        <section className="mt-12">
-          <h2 className="text-lg font-bold tracking-tight text-ink">{d["dash.myVehicles"]}</h2>
-          {ov.cards.length === 0 ? (
-            <EmptyState
-              className="mt-4"
-              icon={<Truck className="size-6" />}
-              title={d["dash.noVehiclesDriver"]}
-              desc={d["dash.noVehiclesDriverDesc"]}
-            />
-          ) : (
-            <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {ov.cards.map((v) => (
-                <VehicleCard key={v.id} vehicle={v} driverCta />
-              ))}
-            </div>
-          )}
-        </section>
+  const offset = Math.max(-36, Math.min(0, Number.parseInt(month ?? "0", 10) || 0));
+  const analytics = await getVehicleAnalytics(vehicle.id, offset);
 
-        {ov.recent.length > 0 && (
-          <section className="mt-12">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold tracking-tight text-ink">{d["dash.recentActivity"]}</h2>
-              <Link href="/history" className="flex items-center gap-1 text-sm font-bold text-brand-deep hover:underline">
-                {d["common.viewAll"]}
-                <ArrowRight className="size-4" />
-              </Link>
-            </div>
-            <div className="mt-4 divide-y divide-line overflow-hidden rounded-card border border-line bg-surface shadow-soft">
-              {ov.recent.slice(0, 5).map((e) => (
-                <div key={e.id} className="flex items-center gap-4 px-4 py-3.5 sm:px-5">
-                  <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand/12 text-brand-deep">
-                    <Fuel className="size-4.5" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-bold text-ink">{e.vehicleName}</p>
-                    <p className="text-xs text-ink-soft">
-                      {formatDate(e.createdAt, locale)} · {e.odometerKm.toLocaleString("en-IN")} km
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-bold text-ink">{formatINR(e.totalAmount, true)}</p>
-                    <p className="text-xs text-ink-soft">{formatLiters(e.quantityLiters)}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-      </div>
-    );
+  let driverName: string | null = null;
+  if (vehicle.driverId) {
+    const [dr] = await db
+      .select({ name: users.name })
+      .from(users)
+      .where(eq(users.id, vehicle.driverId))
+      .limit(1);
+    driverName = dr?.name ?? null;
   }
 
-  /* ------------------------------ OWNER ------------------------------ */
-  const ov = await getOwnerOverview(user.companyId);
+  const byDay = new Map<number, DayPoint>();
+  let monthSpend = 0;
+  let monthLiters = 0;
+  for (const e of analytics.entries) {
+    const day = new Date(e.createdAt).getDate();
+    const point = byDay.get(day) ?? { day, amount: 0, liters: 0 };
+    point.amount += Number(e.totalAmount);
+    point.liters += Number(e.quantityLiters);
+    byDay.set(day, point);
+    monthSpend += Number(e.totalAmount);
+    monthLiters += Number(e.quantityLiters);
+  }
+  const daysInMonth = new Date(
+    analytics.monthStart.getFullYear(),
+    analytics.monthStart.getMonth() + 1,
+    0
+  ).getDate();
+  const points = [...byDay.values()].sort((a, b) => a.day - b.day);
+  const monthLabel = analytics.monthStart.toLocaleDateString(tag, {
+    month: "long",
+    year: "numeric",
+  });
+  const ownerDriverList =
+    user.role === "owner" ? await getAssignableDrivers(user.companyId) : [];
+
+  const statChips = [
+    { label: d["vdetail.monthSpend"], value: formatINR(monthSpend) },
+    { label: d["vdetail.monthFuel"], value: formatLiters(monthLiters) },
+    { label: d["vdetail.entries"], value: String(analytics.entries.length) },
+    {
+      label: d["vdetail.average"],
+      value: analytics.entries.length ? formatINR(monthSpend / analytics.entries.length) : d["common.none"],
+    },
+  ];
+
   return (
     <div>
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-3xl">
-            {d["dash.greeting"].replace("{name}", user.name.split(" ")[0])}
-          </h1>
-          <p className="mt-1 text-[15px] text-ink-soft">{d["dash.ownerSub"]}</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <Link
-            href="/fuel/new"
-            className="inline-flex h-11 items-center gap-2 rounded-xl bg-brand px-5 text-sm font-bold text-night shadow-amber transition hover:bg-brand-deep hover:text-white"
-          >
-            <Fuel className="size-4" />
-            {d["dash.quickFuel"] || "Log Fuel"}
-          </Link>
-          <AddVehicleButton />
-        </div>
-      </header>
+      <Link
+        href="/vehicles"
+        className="inline-flex items-center gap-1.5 text-sm font-bold text-ink-soft transition hover:text-ink"
+      >
+        <ArrowLeft className="size-4" />
+        {d["nav.vehicles"]}
+      </Link>
 
-      <section className="mt-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard
-          accent
-          icon={<IndianRupee className="size-5" />}
-          label={d["dash.spendMonth"]}
-          value={formatINR(ov.spend)}
-          sub={<TrendChip current={ov.spend} previous={ov.prevSpend} label={d["dash.vsLastMonth"]} />}
-        />
-        <StatCard icon={<Droplets className="size-5" />} label={d["dash.fuelMonth"]} value={formatLiters(ov.liters)} />
-        <StatCard icon={<Receipt className="size-5" />} label={d["dash.entriesMonth"]} value={String(ov.entries)} />
-        <StatCard
-          icon={<Truck className="size-5" />}
-          label={d["dash.totalVehicles"]}
-          value={String(ov.vehicleCount)}
-          sub={
-            <Badge tone="neutral" className="self-start">
-              {ov.driverCount} {d["dash.totalDrivers"].toLowerCase()}
-            </Badge>
-          }
-        />
-      </section>
-
-      {ov.flagged > 0 && (
-        <Link
-          href="/history"
-          className="mt-4 flex items-center gap-3 rounded-card border border-red-300 bg-red-50 px-5 py-4 transition hover:bg-red-100"
-        >
-          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-red-600/12 text-red-600">
-            <AlertTriangle className="size-5" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-red-700">
-              {d["history.flaggedCount"].replace("{count}", String(ov.flagged))}
-            </p>
-            <p className="text-xs text-red-600/80">{d["anomaly.title"]}</p>
-          </div>
-          <ArrowRight className="size-4 text-red-600" />
-        </Link>
-      )}
-
-      <section className="mt-12">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold tracking-tight text-ink">{d["dash.myVehicles"]}</h2>
-          <Link href="/vehicles" className="flex items-center gap-1 text-sm font-bold text-brand-deep hover:underline">
-            {d["common.viewAll"]}
-            <ArrowRight className="size-4" />
-          </Link>
-        </div>
-        {ov.cards.length === 0 ? (
-          <EmptyState
-            className="mt-4"
-            icon={<Truck className="size-6" />}
-            title={d["vehicles.noVehicles"]}
-            desc={d["vehicles.noVehiclesDesc"]}
-            action={<AddVehicleButton />}
+      {/* ---------- Header card ---------- */}
+      <Card className="mt-4 overflow-hidden">
+        <div className="relative h-44 sm:h-52">
+          <Image
+            src={VEHICLE_IMAGES[vehicle.type] ?? VEHICLE_IMAGES.other}
+            alt={vehicle.name}
+            fill
+            priority
+            sizes="(max-width: 1152px) 100vw, 1152px"
+            className="object-cover"
           />
-        ) : (
-          <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {ov.cards.slice(0, 6).map((v) => (
-              <VehicleCard key={v.id} vehicle={v} />
-            ))}
+          <div className="absolute inset-0 bg-gradient-to-t from-night/85 via-night/30 to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 flex flex-wrap items-end justify-between gap-3 p-5">
+            <div>
+              <div className="mb-2 flex gap-1.5">
+                <Badge tone="amber" className="bg-brand text-night">
+                  {d[`vehicleType.${vehicle.type}` as keyof typeof d]}
+                </Badge>
+                <Badge className="bg-white/15 text-white backdrop-blur">
+                  {d[`fuelType.${vehicle.fuelType}` as keyof typeof d]}
+                </Badge>
+              </div>
+              <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
+                {vehicle.name}
+              </h1>
+              <p className="mt-1 font-mono text-sm font-semibold tracking-wide text-white/70">
+                {vehicle.registrationNumber}
+              </p>
+            </div>
+            {user.role === "driver" && (
+              <Link
+                href={`/fuel/new?vehicle=${vehicle.id}`}
+                className="inline-flex h-11 items-center gap-2 rounded-xl bg-brand px-5 text-sm font-bold text-night shadow-amber transition hover:bg-brand-deep hover:text-white"
+              >
+                <Fuel className="size-4" />
+                {d["vdetail.addEntry"]}
+              </Link>
+            )}
           </div>
-        )}
-      </section>
+        </div>
 
-      <section className="mt-12">
-        <h2 className="text-lg font-bold tracking-tight text-ink">{d["dash.recentActivity"]}</h2>
-        {ov.recent.length === 0 ? (
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-3 px-5 py-4">
+          <span className="flex items-center gap-2 text-sm text-ink-soft">
+            <Gauge className="size-4" />
+            <span className="font-semibold">{d["vdetail.lastOdometer"]}:</span>
+            <span className="font-bold text-ink">
+              {analytics.lastOdometer != null
+                ? `${analytics.lastOdometer.toLocaleString("en-IN")} km`
+                : d["common.none"]}
+            </span>
+          </span>
+
+          <span className="flex items-center gap-2.5 text-sm">
+            {driverName ? (
+              <>
+                <Avatar name={driverName} id={vehicle.driverId!} size="sm" />
+                <span className="font-semibold text-ink">{driverName}</span>
+              </>
+            ) : (
+              <span className="font-semibold italic text-ink-soft/70">{d["common.unassigned"]}</span>
+            )}
+          </span>
+
+          {/* Owner Actions: Assign Driver + Delete Vehicle */}
+          {user.role === "owner" && (
+            <div className="ml-auto flex flex-wrap items-center gap-2">
+              <AssignDriver
+                vehicleId={vehicle.id}
+                currentDriverId={vehicle.driverId}
+                drivers={ownerDriverList}
+              />
+              <DeleteVehicleButton
+                vehicleId={vehicle.id}
+                vehicleName={vehicle.name}
+                redirectTo="/vehicles"
+                labels={{
+                  delete: dict["vehicles.delete"] ?? "Delete",
+                  confirm:
+                    dict["vehicles.deleteConfirm"] ??
+                    'Delete vehicle "{name}"? This cannot be undone.',
+                  deleting: dict["common.deleting"] ?? "Deleting…",
+                  blocked:
+                    dict["vehicles.deleteBlocked"] ??
+                    "This vehicle has fuel entries and cannot be deleted.",
+                  error: dict["common.error"] ?? "Something went wrong.",
+                }}
+              />
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {/* ---------- Chart ---------- */}
+      <Card className="mt-6 p-5 sm:p-6">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <h2 className="flex items-center gap-2 text-base font-bold tracking-tight text-ink">
+            <TrendingUp className="size-4.5 text-brand" />
+            {d["vdetail.graph"]}
+          </h2>
+          <div className="flex items-center gap-2">
+            <Link
+              href={`/vehicles/${vehicle.id}?month=${offset - 1}`}
+              scroll={false}
+              className="grid size-9 place-items-center rounded-xl border border-line text-ink-soft transition hover:border-line-strong hover:text-ink"
+              aria-label="Previous month"
+            >
+              <ChevronLeft className="size-4" />
+            </Link>
+            <Link
+              href={`/vehicles/${vehicle.id}?month=${offset + 1}`}
+              scroll={false}
+              aria-disabled={offset === 0}
+              className={
+                offset === 0
+                  ? "pointer-events-none grid size-9 place-items-center rounded-xl border border-line text-ink-soft/30"
+                  : "grid size-9 place-items-center rounded-xl border border-line text-ink-soft transition hover:border-line-strong hover:text-ink"
+              }
+              aria-label="Next month"
+            >
+              <ChevronRight className="size-4" />
+            </Link>
+          </div>
+        </div>
+
+        <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {statChips.map((s) => (
+            <div key={s.label} className="rounded-2xl bg-paper px-4 py-3">
+              <p className="text-lg font-bold tracking-tight text-ink">{s.value}</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-soft/70">
+                {s.label}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <FuelChart
+          days={daysInMonth}
+          points={points}
+          monthLabel={monthLabel}
+          emptyText={d["vdetail.noEntriesMonth"]}
+          labels={{
+            amount: d["vdetail.amount"],
+            liters: d["vdetail.liters"],
+            amountShort: d["vdetail.amount"],
+            litersShort: d["vdetail.liters"],
+          }}
+        />
+      </Card>
+
+      {/* ---------- Entry log ---------- */}
+      <section className="mt-6">
+        <h2 className="text-lg font-bold tracking-tight text-ink">{d["vdetail.fuelLog"]}</h2>
+        {analytics.entries.length === 0 ? (
           <EmptyState
             className="mt-4"
             icon={<Fuel className="size-6" />}
-            title={d["dash.noActivity"]}
-            desc={d["dash.noActivityDesc"]}
+            title={d["vdetail.noEntriesMonth"]}
+            action={
+              user.role === "driver" ? (
+                <Link
+                  href={`/fuel/new?vehicle=${vehicle.id}`}
+                  className="inline-flex h-10 items-center gap-2 rounded-xl bg-brand px-4 text-sm font-bold text-night shadow-amber transition hover:bg-brand-deep hover:text-white"
+                >
+                  <Fuel className="size-4" />
+                  {d["vdetail.addEntry"]}
+                </Link>
+              ) : undefined
+            }
           />
         ) : (
           <div className="mt-4 divide-y divide-line overflow-hidden rounded-card border border-line bg-surface shadow-soft">
-            {ov.recent.map((e) => (
-              <Link
-                key={e.id}
-                href={`/vehicles/${e.vehicleId}`}
-                className="flex items-center gap-4 px-4 py-3.5 transition-colors hover:bg-paper sm:px-5"
-              >
-                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand/12 text-brand-deep">
-                  <Fuel className="size-4.5" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-bold text-ink">{e.vehicleName}</p>
-                  <p className="text-xs text-ink-soft">
-                    {formatDate(e.createdAt, locale)} · {formatLiters(e.quantityLiters)} · {e.odometerKm.toLocaleString("en-IN")} km
-                  </p>
-                </div>
-                <span className="hidden items-center gap-1.5 text-xs font-semibold text-ink-soft sm:flex">
-                  <Avatar name={e.driverName} id={e.driverId} size="sm" />
-                  {e.driverName}
-                </span>
-                <p className="text-sm font-bold text-ink">{formatINR(e.totalAmount, true)}</p>
-              </Link>
+            {[...analytics.entries].reverse().map((e) => (
+              <FuelEntryRow key={e.id} entry={e} showDriver={user.role === "owner"} />
             ))}
           </div>
         )}
