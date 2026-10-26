@@ -11,24 +11,19 @@ export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   try {
-    // Allows both Owner and Driver
-    const user = await requireUser();
+    const user = await requireUser("driver");
     const rl = rateLimit({ key: `fuel:${user.id}`, limit: 20, windowMs: 60_000 });
     if (!rl.ok) return Response.json({ error: "rate_limited" }, { status: 429 });
 
     const data = fuelEntrySchema.parse(await readJson(req));
 
-    // Get vehicle inside user's company
     const [vehicle] = await db
       .select()
       .from(vehicles)
       .where(and(eq(vehicles.id, data.vehicleId), eq(vehicles.companyId, user.companyId)))
       .limit(1);
-      
     if (!vehicle) return Response.json({ error: "not_found" }, { status: 404 });
-    
-    // Security check: Drivers can only log for their assigned vehicle, Owner can log for any vehicle
-    if (user.role === "driver" && vehicle.driverId !== user.id) {
+    if (vehicle.driverId !== user.id) {
       return Response.json({ error: "not_assigned" }, { status: 403 });
     }
 
@@ -60,7 +55,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // Soft flags: saved, but shown in red for owner review.
+    // Soft flags: saved, but shown in red for the owner to review.
     const anomalies = detectAnomalies({
       fuelRate: data.fuelRate,
       quantityLiters: data.quantityLiters,
@@ -75,9 +70,7 @@ export async function POST(req: Request) {
       .values({
         companyId: user.companyId,
         vehicleId: data.vehicleId,
-        driverId: vehicle.driverId ?? (user.role === "driver" ? user.id : null),
-        loggedById: user.id,
-        loggedByRole: user.role,
+        driverId: user.id,
         fuelRate: data.fuelRate.toFixed(2),
         quantityLiters: data.quantityLiters.toFixed(2),
         totalAmount: data.totalAmount.toFixed(2),
