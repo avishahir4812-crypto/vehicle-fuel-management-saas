@@ -8,7 +8,7 @@ import {
   users,
   type User,
 } from "@/db/schema";
-import { and, asc, eq, gt, ne, sql } from "drizzle-orm";
+import { and, asc, eq, gt, isNull, ne, or, sql } from "drizzle-orm";
 
 export type ChatMember = { id: string; name: string; role: "owner" | "driver" };
 
@@ -39,42 +39,53 @@ export async function getCompanyMembers(companyId: string): Promise<ChatMember[]
   return rows;
 }
 
-export async function getThreadForUser(user: User) {
-  const conversationId = await ensureCompanyThread(user.companyId);
-  const [company] = await db
-    .select({ name: companies.name })
-    .from(companies)
-    .where(eq(companies.id, user.companyId))
-    .limit(1);
-  const members = await getCompanyMembers(user.companyId);
-
-  const [read] = await db
-    .select({ lastReadAt: conversationReads.lastReadAt })
-    .from(conversationReads)
-    .where(
-      and(
-        eq(conversationReads.conversationId, conversationId),
-        eq(conversationReads.userId, user.id)
-      )
-    )
-    .limit(1);
-
-  const [unreadRow] = await db
+async function getUnreadCount(conversationId: string, userId: string): Promise<number> {
+  const [row] = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(messages)
+    .leftJoin(
+      conversationReads,
+      and(
+        eq(conversationReads.conversationId, messages.conversationId),
+        eq(conversationReads.userId, userId)
+      )
+    )
     .where(
       and(
         eq(messages.conversationId, conversationId),
-        ne(messages.senderId, user.id),
-        read ? gt(messages.createdAt, read.lastReadAt) : undefined
+        ne(messages.senderId, userId),
+        or(
+          isNull(conversationReads.lastReadAt),
+          gt(messages.createdAt, conversationReads.lastReadAt)
+        )
       )
     );
+
+  return row?.count ?? 0;
+}
+
+export async function getUnreadCountForUser(user: User): Promise<number> {
+  const conversationId = await ensureCompanyThread(user.companyId);
+  return getUnreadCount(conversationId, user.id);
+}
+
+export async function getThreadForUser(user: User) {
+  const conversationId = await ensureCompanyThread(user.companyId);
+  const [[company], members, unread] = await Promise.all([
+    db
+      .select({ name: companies.name })
+      .from(companies)
+      .where(eq(companies.id, user.companyId))
+      .limit(1),
+    getCompanyMembers(user.companyId),
+    getUnreadCount(conversationId, user.id),
+  ]);
 
   return {
     id: conversationId,
     title: company?.name ?? "Fleet",
     members,
-    unread: unreadRow?.count ?? 0,
+    unread,
   };
 }
 

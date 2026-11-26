@@ -109,17 +109,17 @@ async function vehicleCards(base: Vehicle[]): Promise<VehicleCard[]> {
   if (base.length === 0) return [];
   const ids = base.map((v) => v.id);
   const { start, end } = monthRange(0);
-  const [stats, odos] = await Promise.all([
+  const driverIds = [...new Set(base.map((v) => v.driverId).filter(Boolean))] as string[];
+  const [stats, odos, driverRows] = await Promise.all([
     statsForVehicleIds(ids, start, end),
     lastOdometers(ids),
+    driverIds.length
+      ? db
+          .select({ id: users.id, name: users.name })
+          .from(users)
+          .where(inArray(users.id, driverIds))
+      : Promise.resolve([]),
   ]);
-  const driverIds = [...new Set(base.map((v) => v.driverId).filter(Boolean))] as string[];
-  const driverRows = driverIds.length
-    ? await db
-        .select({ id: users.id, name: users.name })
-        .from(users)
-        .where(inArray(users.id, driverIds))
-    : [];
   const names = new Map(driverRows.map((d) => [d.id, d.name]));
   return base.map((v) => ({
     ...v,

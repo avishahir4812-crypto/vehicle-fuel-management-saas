@@ -1,24 +1,89 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Truck } from "lucide-react";
 import { getSessionUser } from "@/lib/auth";
 import { getCompanyVehicles, getDriverVehicles } from "@/lib/queries";
 import { getServerLocale } from "@/i18n/server";
+import type { Dict } from "@/i18n";
 import { EmptyState } from "@/components/ui";
 import { VehicleCard } from "@/components/app/VehicleCard";
 import { AddVehicleButton } from "@/components/app/AddVehicleButton";
 
 export const metadata: Metadata = { title: "Vehicles" };
 
+async function VehicleList({
+  userId,
+  companyId,
+  isOwner,
+  d,
+}: {
+  userId: string;
+  companyId: string;
+  isOwner: boolean;
+  d: Dict;
+}) {
+  const cards = isOwner
+    ? await getCompanyVehicles(companyId)
+    : await getDriverVehicles(userId);
+
+  if (cards.length === 0) {
+    return (
+      <EmptyState
+        className="mt-8"
+        icon={<Truck className="size-6" />}
+        title={isOwner ? d["vehicles.noVehicles"] : d["dash.noVehiclesDriver"]}
+        desc={isOwner ? d["vehicles.noVehiclesDesc"] : d["dash.noVehiclesDriverDesc"]}
+        action={isOwner ? <AddVehicleButton /> : undefined}
+      />
+    );
+  }
+
+  return (
+    <div className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      {cards.map((v, index) => (
+        <VehicleCard
+          key={v.id}
+          vehicle={v}
+          showDriver={isOwner}
+          driverCta={!isOwner}
+          priority={index === 0}
+        />
+      ))}
+    </div>
+  );
+}
+
+function VehicleListSkeleton() {
+  return (
+    <div
+      className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
+      aria-busy="true"
+      aria-label="Loading vehicles"
+    >
+      {Array.from({ length: 3 }, (_, index) => (
+        <div key={index} className="overflow-hidden rounded-card border border-line bg-surface">
+          <div className="skeleton h-36 w-full" />
+          <div className="space-y-3 p-4">
+            <div className="skeleton h-4 w-2/3 rounded-md" />
+            <div className="skeleton h-3 w-1/3 rounded-md" />
+            <div className="grid grid-cols-3 gap-2 pt-2">
+              {Array.from({ length: 3 }, (_, itemIndex) => (
+                <div key={itemIndex} className="skeleton h-8 rounded-lg" />
+              ))}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default async function VehiclesPage() {
-  const user = await getSessionUser();
+  const [user, { d }] = await Promise.all([getSessionUser(), getServerLocale()]);
   if (!user) notFound();
-  const { d } = await getServerLocale();
 
   const isOwner = user.role === "owner";
-  const cards = isOwner
-    ? await getCompanyVehicles(user.companyId)
-    : await getDriverVehicles(user.id);
 
   return (
     <div>
@@ -34,27 +99,14 @@ export default async function VehiclesPage() {
         {isOwner && <AddVehicleButton />}
       </header>
 
-      {cards.length === 0 ? (
-        <EmptyState
-          className="mt-8"
-          icon={<Truck className="size-6" />}
-          title={isOwner ? d["vehicles.noVehicles"] : d["dash.noVehiclesDriver"]}
-          desc={isOwner ? d["vehicles.noVehiclesDesc"] : d["dash.noVehiclesDriverDesc"]}
-          action={isOwner ? <AddVehicleButton /> : undefined}
+      <Suspense fallback={<VehicleListSkeleton />}>
+        <VehicleList
+          userId={user.id}
+          companyId={user.companyId}
+          isOwner={isOwner}
+          d={d}
         />
-      ) : (
-        <div className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {cards.map((v, index) => (
-            <VehicleCard
-              key={v.id}
-              vehicle={v}
-              showDriver={isOwner}
-              driverCta={!isOwner}
-              priority={index === 0}
-            />
-          ))}
-        </div>
-      )}
+      </Suspense>
     </div>
   );
 }

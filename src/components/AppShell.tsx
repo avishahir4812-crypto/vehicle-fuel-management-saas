@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   ClipboardList,
   LayoutDashboard,
@@ -60,13 +60,18 @@ export function AppShell({ user, children }: { user: ShellUser; children: ReactN
   const nav = user.role === "owner" ? ownerNav : driverNav;
   const [unread, setUnread] = useState(0);
   const [signingOut, setSigningOut] = useState(false);
+  const pathnameRef = useRef(pathname);
+
+  useEffect(() => {
+    pathnameRef.current = pathname;
+  }, [pathname]);
 
   useEffect(() => {
     let cancelled = false;
     async function poll() {
-      if (document.hidden || pathname.startsWith("/chat")) return;
+      if (document.hidden || pathnameRef.current.startsWith("/chat")) return;
       try {
-        const res = await fetch("/api/chat", { cache: "no-store" });
+        const res = await fetch("/api/chat?unread=1", { cache: "no-store" });
         if (!res.ok) return;
         const data = (await res.json()) as { totalUnread: number };
         if (!cancelled) setUnread(data.totalUnread ?? 0);
@@ -74,19 +79,20 @@ export function AppShell({ user, children }: { user: ShellUser; children: ReactN
         /* keep quiet */
       }
     }
-    void poll();
-    const interval = setInterval(poll, 45_000);
+    const initialPoll = setTimeout(poll, 5_000);
+    const interval = setInterval(poll, 60_000);
     const onFocus = () => void poll();
     const onRead = () => void poll();
     window.addEventListener("focus", onFocus);
     window.addEventListener("fm:messages", onRead);
     return () => {
       cancelled = true;
+      clearTimeout(initialPoll);
       clearInterval(interval);
       window.removeEventListener("focus", onFocus);
       window.removeEventListener("fm:messages", onRead);
     };
-  }, [pathname]);
+  }, []);
 
   const isActive = (href: string) =>
     href === "/dashboard" ? pathname === href : pathname.startsWith(href);
@@ -112,7 +118,7 @@ export function AppShell({ user, children }: { user: ShellUser; children: ReactN
       {/* ---------- Desktop sidebar ---------- */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-line bg-surface lg:flex">
         <div className="flex h-16 items-center border-b border-line px-5">
-          <Link href="/dashboard" aria-label="FleetFuel" className="min-w-0">
+          <Link href="/dashboard" prefetch={false} aria-label="FleetFuel" className="min-w-0">
             <Logo />
             <p className="mt-0.5 truncate pl-10 text-[11px] font-semibold text-ink-soft">
               {user.companyName}
@@ -194,7 +200,7 @@ export function AppShell({ user, children }: { user: ShellUser; children: ReactN
 
       {/* ---------- Mobile topbar ---------- */}
       <header className="fixed inset-x-0 top-0 z-40 flex h-14 items-center justify-between border-b border-line bg-paper/90 px-4 backdrop-blur-md lg:hidden">
-        <Link href="/dashboard" aria-label="FleetFuel">
+        <Link href="/dashboard" prefetch={false} aria-label="FleetFuel">
           <Logo />
         </Link>
         <div className="flex items-center gap-1">

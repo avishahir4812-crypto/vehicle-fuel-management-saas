@@ -39,9 +39,8 @@ function TrendChip({ current, previous, label }: { current: number; previous: nu
 }
 
 export default async function DashboardPage() {
-  const user = await getSessionUser();
+  const [user, { locale, d }] = await Promise.all([getSessionUser(), getServerLocale()]);
   if (!user) notFound();
-  const { locale, d } = await getServerLocale();
 
   /* ------------------------------ DRIVER ------------------------------ */
   if (user.role === "driver") {

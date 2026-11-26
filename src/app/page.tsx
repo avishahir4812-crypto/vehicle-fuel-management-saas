@@ -189,6 +189,7 @@ export default async function LandingPage() {
             {user ? (
               <Link
                 href="/dashboard"
+                prefetch={false}
                 className="ml-1 rounded-xl bg-brand px-4 py-2 text-sm font-bold text-night transition hover:bg-brand-deep hover:text-white"
               >
                 Dashboard
@@ -269,7 +270,7 @@ export default async function LandingPage() {
 
           <Reveal delay={200} className="relative">
             {user ? (
-              <Link href="/dashboard" className="block">
+              <Link href="/dashboard" prefetch={false} className="block">
                 <HeroChartMock />
               </Link>
             ) : (

@@ -28,7 +28,6 @@ export function LoginForm({ expired = false }: { expired?: boolean }) {
       if (res.ok) {
         document.cookie = "fm_returning=1;path=/;max-age=31536000;samesite=lax";
         router.push("/dashboard");
-        router.refresh();
         return;
       }
       const data = (await res.json().catch(() => null)) as { error?: string } | null;

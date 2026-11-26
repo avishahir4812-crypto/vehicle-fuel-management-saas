@@ -64,7 +64,6 @@ export function SignupForm() {
           return;
         }
         router.push("/dashboard");
-        router.refresh();
         return;
       }
 
@@ -126,7 +125,6 @@ export function SignupForm() {
             className="flex-1"
             onClick={() => {
               router.push("/dashboard");
-              router.refresh();
             }}
           >
             {t("auth.continue")}

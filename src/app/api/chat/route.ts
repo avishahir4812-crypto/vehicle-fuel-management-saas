@@ -1,6 +1,6 @@
 import { requireUser } from "@/lib/auth";
 import { jsonError } from "@/lib/api";
-import { getThreadForUser, listMessages } from "@/lib/chat";
+import { getThreadForUser, getUnreadCountForUser, listMessages } from "@/lib/chat";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,10 +9,13 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request) {
   try {
     const user = await requireUser();
-    const thread = await getThreadForUser(user);
-
     const url = new URL(req.url);
+    if (url.searchParams.get("unread") === "1") {
+      return Response.json({ totalUnread: await getUnreadCountForUser(user) });
+    }
+
     const withMessages = url.searchParams.get("messages") === "1";
+    const thread = await getThreadForUser(user);
 
     return Response.json({
       thread,
