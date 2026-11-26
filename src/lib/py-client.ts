@@ -10,7 +10,7 @@ import "server-only";
 
 const BASE = process.env.PY_API_URL?.replace(/\/$/, "") ?? "";
 const TOKEN = process.env.PY_SERVICE_TOKEN ?? "";
-const TIMEOUT_MS = Number(process.env.PY_TIMEOUT_MS ?? "2500");
+const TIMEOUT_MS = Number(process.env.PY_TIMEOUT_MS ?? "1200");
 
 /** Circuit breaker: after a failure, skip Python for a short cooldown. */
 const COOLDOWN_MS = 30_000;

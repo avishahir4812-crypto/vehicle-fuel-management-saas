@@ -196,10 +196,13 @@ export async function getOwnerOverview(companyId: string): Promise<OwnerOverview
     flagged = flaggedRow[0]?.count ?? 0;
   }
 
-  const [driverRow] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(users)
-    .where(and(eq(users.companyId, companyId), eq(users.role, "driver")));
+  const [driverRow, cards] = await Promise.all([
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(users)
+      .where(and(eq(users.companyId, companyId), eq(users.role, "driver"))),
+    vehicleCards(fleet),
+  ]);
 
   return {
     spend: current.spend,
@@ -207,10 +210,10 @@ export async function getOwnerOverview(companyId: string): Promise<OwnerOverview
     entries: current.entries,
     prevSpend,
     vehicleCount: fleet.length,
-    driverCount: driverRow?.count ?? 0,
+    driverCount: driverRow[0]?.count ?? 0,
     flagged,
     recent,
-    cards: await vehicleCards(fleet),
+    cards,
   };
 }
 
@@ -230,24 +233,26 @@ export async function getDriverOverview(driverId: string): Promise<DriverOvervie
     return { ...py, recent: reviveEntries(py.recent), cards: reviveCards(py.cards) };
   }
 
-  const assigned = await db
-    .select()
-    .from(vehicles)
-    .where(eq(vehicles.driverId, driverId))
-    .orderBy(desc(vehicles.createdAt));
-
   const { start, end } = monthRange(0);
-  const rows = await joinedEntries()
-    .where(
-      and(
-        eq(fuelEntries.driverId, driverId),
-        gte(fuelEntries.createdAt, start),
-        lt(fuelEntries.createdAt, end)
+  const [assigned, rows] = await Promise.all([
+    db
+      .select()
+      .from(vehicles)
+      .where(eq(vehicles.driverId, driverId))
+      .orderBy(desc(vehicles.createdAt)),
+    joinedEntries()
+      .where(
+        and(
+          eq(fuelEntries.driverId, driverId),
+          gte(fuelEntries.createdAt, start),
+          lt(fuelEntries.createdAt, end)
+        )
       )
-    )
-    .orderBy(desc(fuelEntries.createdAt))
-    .limit(30);
+      .orderBy(desc(fuelEntries.createdAt))
+      .limit(30),
+  ]);
   const recent = flatten(rows);
+  const cards = await vehicleCards(assigned);
 
   let monthSpend = 0;
   let monthLiters = 0;
@@ -257,7 +262,7 @@ export async function getDriverOverview(driverId: string): Promise<DriverOvervie
   }
 
   return {
-    cards: await vehicleCards(assigned),
+    cards,
     recent: recent.slice(0, 8),
     monthSpend,
     monthLiters,
@@ -307,16 +312,18 @@ export async function getVehicleAnalytics(vehicleId: string, offset: number) {
   }
 
   const { start, end } = monthRange(offset);
-  const rows = await joinedEntries()
-    .where(
-      and(
-        eq(fuelEntries.vehicleId, vehicleId),
-        gte(fuelEntries.createdAt, start),
-        lt(fuelEntries.createdAt, end)
+  const [rows, odos] = await Promise.all([
+    joinedEntries()
+      .where(
+        and(
+          eq(fuelEntries.vehicleId, vehicleId),
+          gte(fuelEntries.createdAt, start),
+          lt(fuelEntries.createdAt, end)
+        )
       )
-    )
-    .orderBy(fuelEntries.createdAt);
-  const odos = await lastOdometers([vehicleId]);
+      .orderBy(fuelEntries.createdAt),
+    lastOdometers([vehicleId]),
+  ]);
   return {
     entries: flatten(rows),
     lastOdometer: odos.get(vehicleId) ?? null,
@@ -395,24 +402,25 @@ export type DriverWithVehicles = Pick<User, "id" | "name" | "phone" | "email" | 
 };
 
 export async function getCompanyDrivers(companyId: string): Promise<DriverWithVehicles[]> {
-  const drivers = await db
-    .select({
-      id: users.id,
-      name: users.name,
-      phone: users.phone,
-      email: users.email,
-      createdAt: users.createdAt,
-    })
-    .from(users)
-    .where(and(eq(users.companyId, companyId), eq(users.role, "driver")))
-    .orderBy(users.name);
+  const [drivers, owned] = await Promise.all([
+    db
+      .select({
+        id: users.id,
+        name: users.name,
+        phone: users.phone,
+        email: users.email,
+        createdAt: users.createdAt,
+      })
+      .from(users)
+      .where(and(eq(users.companyId, companyId), eq(users.role, "driver")))
+      .orderBy(users.name),
+    db
+      .select()
+      .from(vehicles)
+      .where(eq(vehicles.companyId, companyId)),
+  ]);
 
   if (drivers.length === 0) return [];
-
-  const owned = await db
-    .select()
-    .from(vehicles)
-    .where(eq(vehicles.companyId, companyId));
 
   return drivers.map((d) => ({
     ...d,

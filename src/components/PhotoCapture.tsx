@@ -97,7 +97,13 @@ export function PhotoCapture({
       {value ? (
         <div className="group relative overflow-hidden rounded-2xl border border-line">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={value} alt={label} className="h-40 w-full object-cover" />
+          <img
+            src={value}
+            alt={label}
+            loading="lazy"
+            decoding="async"
+            className="h-40 w-full object-cover"
+          />
           <div className="absolute inset-0 flex items-end justify-between bg-gradient-to-t from-black/60 via-transparent to-transparent p-3 opacity-0 transition-opacity group-hover:opacity-100">
             <button
               type="button"

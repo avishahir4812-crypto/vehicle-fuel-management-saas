@@ -36,6 +36,7 @@ export function ProofPhotos({ photos }: { photos: ProofPhoto[] }) {
               src={p.url}
               alt={p.label}
               loading="lazy"
+              decoding="async"
               className="h-14 w-16 object-cover transition-transform duration-300 group-hover:scale-110"
             />
             <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-1 pb-0.5 pt-3 text-left text-[9px] font-bold uppercase tracking-wide text-white">
@@ -68,6 +69,8 @@ export function ProofPhotos({ photos }: { photos: ProofPhoto[] }) {
             <img
               src={active.url}
               alt={active.label}
+              loading="lazy"
+              decoding="async"
               className="mx-auto max-h-[82vh] w-auto max-w-full rounded-2xl shadow-lift"
             />
             <figcaption className="mt-3 text-center text-xs font-bold uppercase tracking-[0.2em] text-white/60">

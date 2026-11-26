@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { randomBytes, scryptSync, timingSafeEqual, createHash } from "crypto";
 import { db } from "@/db";
@@ -57,7 +58,7 @@ export async function destroySession(): Promise<void> {
   store.delete(SESSION_COOKIE);
 }
 
-export async function getSessionUser(): Promise<User | null> {
+export const getSessionUser = cache(async function getSessionUser(): Promise<User | null> {
   const store = await cookies();
   const token = store.get(SESSION_COOKIE)?.value;
   if (!token) return null;
@@ -73,7 +74,7 @@ export async function getSessionUser(): Promise<User | null> {
     )
     .limit(1);
   return rows[0]?.user ?? null;
-}
+});
 
 /* Thin guard helpers for route handlers */
 export class ApiError extends Error {

@@ -28,6 +28,7 @@ export async function VehicleCard({
           src={VEHICLE_IMAGES[vehicle.type] ?? VEHICLE_IMAGES.other}
           alt={vehicle.name}
           fill
+          loading="lazy"
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
           className="object-cover transition-transform duration-500 group-hover:scale-105"
         />

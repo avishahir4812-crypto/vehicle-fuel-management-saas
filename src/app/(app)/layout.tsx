@@ -10,11 +10,14 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const user = await getSessionUser();
   if (!user) redirect("/login?expired=1");
 
-  const { company, access } = await getCompanyAccess(user.companyId);
+  const [{ company, access }, requestHeaders] = await Promise.all([
+    getCompanyAccess(user.companyId),
+    headers(),
+  ]);
   const companyName = company?.name ?? "Fleet";
 
   // Owners can always reach /billing and /settings so they can pay or sign out.
-  const path = (await headers()).get("x-pathname") ?? "";
+  const path = requestHeaders.get("x-pathname") ?? "";
   const alwaysAllowed = path.startsWith("/billing") || path.startsWith("/settings");
 
   const shellUser = {

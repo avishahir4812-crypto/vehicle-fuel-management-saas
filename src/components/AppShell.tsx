@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n/I18nProvider";
-import { Avatar, Logo } from "@/components/ui";
+import { Avatar, Logo, Spinner } from "@/components/ui";
 import { LanguageMenu } from "@/components/LanguageMenu";
 import type { DictKey } from "@/i18n";
 
@@ -64,6 +64,7 @@ export function AppShell({ user, children }: { user: ShellUser; children: ReactN
   useEffect(() => {
     let cancelled = false;
     async function poll() {
+      if (document.hidden) return;
       try {
         const res = await fetch("/api/chat", { cache: "no-store" });
         if (!res.ok) return;
@@ -74,7 +75,7 @@ export function AppShell({ user, children }: { user: ShellUser; children: ReactN
       }
     }
     void poll();
-    const interval = setInterval(poll, 12_000);
+    const interval = setInterval(poll, 30_000);
     const onFocus = () => void poll();
     const onRead = () => void poll();
     window.addEventListener("focus", onFocus);
@@ -185,7 +186,7 @@ export function AppShell({ user, children }: { user: ShellUser; children: ReactN
             disabled={signingOut}
             className="mt-2 flex w-full items-center gap-2.5 rounded-xl px-4 py-2.5 text-sm font-semibold text-ink-soft transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
           >
-            <LogOut className="size-4" />
+            {signingOut ? <Spinner className="size-4" /> : <LogOut className="size-4" />}
             {t("nav.signOut")}
           </button>
         </div>

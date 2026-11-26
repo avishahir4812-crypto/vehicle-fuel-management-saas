@@ -51,17 +51,20 @@ export default async function VehicleDetailPage({
   if (!canView) notFound();
 
   const offset = Math.max(-36, Math.min(0, Number.parseInt(month ?? "0", 10) || 0));
-  const analytics = await getVehicleAnalytics(vehicle.id, offset);
-
-  let driverName: string | null = null;
-  if (vehicle.driverId) {
-    const [dr] = await db
-      .select({ name: users.name })
-      .from(users)
-      .where(eq(users.id, vehicle.driverId))
-      .limit(1);
-    driverName = dr?.name ?? null;
-  }
+  const [analytics, driverRow, ownerDriverList] = await Promise.all([
+    getVehicleAnalytics(vehicle.id, offset),
+    vehicle.driverId
+      ? db
+          .select({ name: users.name })
+          .from(users)
+          .where(eq(users.id, vehicle.driverId))
+          .limit(1)
+      : Promise.resolve([]),
+    user.role === "owner"
+      ? getAssignableDrivers(user.companyId)
+      : Promise.resolve([]),
+  ]);
+  const driverName = driverRow[0]?.name ?? null;
 
   const byDay = new Map<number, DayPoint>();
   let monthSpend = 0;
@@ -85,9 +88,6 @@ export default async function VehicleDetailPage({
     month: "long",
     year: "numeric",
   });
-  const ownerDriverList =
-    user.role === "owner" ? await getAssignableDrivers(user.companyId) : [];
-
   const statChips = [
     { label: d["vdetail.monthSpend"], value: formatINR(monthSpend) },
     { label: d["vdetail.monthFuel"], value: formatLiters(monthLiters) },

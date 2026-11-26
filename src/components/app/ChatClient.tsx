@@ -92,9 +92,18 @@ export function ChatClient({ userId }: { userId: string; role: "owner" | "driver
   }, []);
 
   useEffect(() => {
-    void load();
-    const interval = setInterval(load, 4000);
-    return () => clearInterval(interval);
+    let cancelled = false;
+    const poll = () => {
+      if (!document.hidden && !cancelled) void load();
+    };
+    void poll();
+    const interval = setInterval(poll, 10_000);
+    document.addEventListener("visibilitychange", poll);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", poll);
+    };
   }, [load]);
 
   const lastCount = useRef(0);
@@ -107,7 +116,7 @@ export function ChatClient({ userId }: { userId: string; role: "owner" | "driver
     lastCount.current = messages.length;
   }, [messages]);
 
-  const members = thread?.members ?? [];
+  const members = useMemo(() => thread?.members ?? [], [thread?.members]);
 
   const suggestions = useMemo(() => {
     if (mentionQuery === null) return [];

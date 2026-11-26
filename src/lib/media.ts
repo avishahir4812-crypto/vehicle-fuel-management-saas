@@ -1,13 +1,9 @@
-/** Curated stock imagery (Pexels) keyed by purpose. */
+/** Local vehicle imagery keyed by vehicle type. */
 export const VEHICLE_IMAGES: Record<string, string> = {
-  bolero:
-    "https://images.pexels.com/photos/34594185/pexels-photo-34594185.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200",
-  truck:
-    "https://images.pexels.com/photos/14868097/pexels-photo-14868097.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200",
-  pickup:
-    "https://images.pexels.com/photos/12021863/pexels-photo-12021863.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200",
-  other:
-    "https://images.pexels.com/photos/2348359/pexels-photo-2348359.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200",
+  bolero: "/vehicles/bolero1.png",
+  truck: "/vehicles/truck.jpg",
+  pickup: "/vehicles/pikup.png",
+  other: "/vehicles/other-vehicles-transparent.png",
 };
 
 export const HERO_IMAGE =
