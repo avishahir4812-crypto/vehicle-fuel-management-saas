@@ -208,8 +208,8 @@ export default async function DashboardPage() {
           />
         ) : (
           <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {ov.cards.slice(0, 6).map((v) => (
-              <VehicleCard key={v.id} vehicle={v} />
+            {ov.cards.slice(0, 6).map((v, index) => (
+              <VehicleCard key={v.id} vehicle={v} priority={index === 0} />
             ))}
           </div>
         )}

@@ -64,7 +64,7 @@ export function AppShell({ user, children }: { user: ShellUser; children: ReactN
   useEffect(() => {
     let cancelled = false;
     async function poll() {
-      if (document.hidden) return;
+      if (document.hidden || pathname.startsWith("/chat")) return;
       try {
         const res = await fetch("/api/chat", { cache: "no-store" });
         if (!res.ok) return;
@@ -75,7 +75,7 @@ export function AppShell({ user, children }: { user: ShellUser; children: ReactN
       }
     }
     void poll();
-    const interval = setInterval(poll, 30_000);
+    const interval = setInterval(poll, 45_000);
     const onFocus = () => void poll();
     const onRead = () => void poll();
     window.addEventListener("focus", onFocus);
@@ -86,7 +86,7 @@ export function AppShell({ user, children }: { user: ShellUser; children: ReactN
       window.removeEventListener("focus", onFocus);
       window.removeEventListener("fm:messages", onRead);
     };
-  }, []);
+  }, [pathname]);
 
   const isActive = (href: string) =>
     href === "/dashboard" ? pathname === href : pathname.startsWith(href);

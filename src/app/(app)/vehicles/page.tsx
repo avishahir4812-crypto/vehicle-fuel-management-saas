@@ -44,8 +44,14 @@ export default async function VehiclesPage() {
         />
       ) : (
         <div className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {cards.map((v) => (
-            <VehicleCard key={v.id} vehicle={v} showDriver={isOwner} driverCta={!isOwner} />
+          {cards.map((v, index) => (
+            <VehicleCard
+              key={v.id}
+              vehicle={v}
+              showDriver={isOwner}
+              driverCta={!isOwner}
+              priority={index === 0}
+            />
           ))}
         </div>
       )}

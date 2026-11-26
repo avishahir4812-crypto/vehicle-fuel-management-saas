@@ -12,10 +12,12 @@ export async function VehicleCard({
   vehicle,
   showDriver = true,
   driverCta = false,
+  priority = false,
 }: {
   vehicle: VehicleCardType;
   showDriver?: boolean;
   driverCta?: boolean;
+  priority?: boolean;
 }) {
   const { d } = await getServerLocale();
   const typeLabel = d[`vehicleType.${vehicle.type}` as keyof typeof d] ?? vehicle.type;
@@ -28,7 +30,7 @@ export async function VehicleCard({
           src={VEHICLE_IMAGES[vehicle.type] ?? VEHICLE_IMAGES.other}
           alt={vehicle.name}
           fill
-          loading="lazy"
+          loading={priority ? "eager" : "lazy"}
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
           className="object-cover transition-transform duration-500 group-hover:scale-105"
         />

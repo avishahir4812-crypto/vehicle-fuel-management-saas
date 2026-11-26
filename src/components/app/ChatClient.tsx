@@ -97,7 +97,7 @@ export function ChatClient({ userId }: { userId: string; role: "owner" | "driver
       if (!document.hidden && !cancelled) void load();
     };
     void poll();
-    const interval = setInterval(poll, 10_000);
+    const interval = setInterval(poll, 20_000);
     document.addEventListener("visibilitychange", poll);
     return () => {
       cancelled = true;

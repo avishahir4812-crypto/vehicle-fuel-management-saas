@@ -75,7 +75,11 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       : defaultLocale;
 
   return (
-    <html lang={locale} className={`${inter.variable} ${serifDisplay.variable}`}>
+    <html
+      lang={locale}
+      data-scroll-behavior="smooth"
+      className={`${inter.variable} ${serifDisplay.variable}`}
+    >
       <body className="min-h-dvh bg-paper font-sans text-ink antialiased">
         <I18nProvider initialLocale={locale}>{children}</I18nProvider>
       </body>
