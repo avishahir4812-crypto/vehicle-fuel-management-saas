@@ -101,6 +101,8 @@ def entry_row(r: asyncpg.Record) -> Dict[str, Any]:
         "pumpPhotoUrl": r["pump_photo_url"],
         "note": r["note"],
         "anomaly": r["anomaly"],
+        "loggedById": str(r["logged_by_id"]) if r["logged_by_id"] else None,
+        "loggedByRole": r["logged_by_role"] or "driver",
         "createdAt": iso(r["created_at"]),
         "vehicleName": r["vehicle_name"],
         "driverName": r["driver_name"],
@@ -111,7 +113,7 @@ ENTRY_SELECT = """
     SELECT f.id, f.vehicle_id, f.driver_id, f.company_id, f.fuel_rate,
            f.quantity_liters, f.total_amount, f.odometer_km,
            f.before_photo_url, f.after_photo_url, f.pump_photo_url,
-           f.note, f.anomaly, f.created_at,
+           f.note, f.anomaly, f.logged_by_id, f.logged_by_role, f.created_at,
            v.name AS vehicle_name, u.name AS driver_name
     FROM fuel_entries f
     JOIN vehicles v ON v.id = f.vehicle_id

@@ -137,7 +137,7 @@ export default async function VehicleDetailPage({
                 {vehicle.registrationNumber}
               </p>
             </div>
-            {user.role === "driver" && (
+            {(user.role === "driver" || user.role === "owner") && (
               <Link
                 href={`/fuel/new?vehicle=${vehicle.id}`}
                 className="inline-flex h-11 items-center gap-2 rounded-xl bg-brand px-5 text-sm font-bold text-night shadow-amber transition hover:bg-brand-deep hover:text-white"
@@ -266,7 +266,7 @@ export default async function VehicleDetailPage({
             icon={<Fuel className="size-6" />}
             title={d["vdetail.noEntriesMonth"]}
             action={
-              user.role === "driver" ? (
+              user.role === "driver" || user.role === "owner" ? (
                 <Link
                   href={`/fuel/new?vehicle=${vehicle.id}`}
                   className="inline-flex h-10 items-center gap-2 rounded-xl bg-brand px-4 text-sm font-bold text-night shadow-amber transition hover:bg-brand-deep hover:text-white"

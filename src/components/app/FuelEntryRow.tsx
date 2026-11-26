@@ -55,6 +55,11 @@ export async function FuelEntryRow({
               {" · "}
               {entry.odometerKm.toLocaleString("en-IN")} km
               {showDriver ? ` · ${entry.driverName}` : ""}
+              {entry.loggedByRole === "owner" && (
+                <span className="ml-2 inline-flex rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                  Owner
+                </span>
+              )}
             </p>
             {entry.note && (
               <p className="mt-0.5 truncate text-xs italic text-ink-soft/80">{entry.note}</p>

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, ChevronRight, Truck } from "lucide-react";
 import { getSessionUser } from "@/lib/auth";
-import { getDriverVehicles, getVehicleById } from "@/lib/queries";
+import { getCompanyVehicles, getDriverVehicles, getVehicleById } from "@/lib/queries";
 import { getServerLocale } from "@/i18n/server";
 import { EmptyState } from "@/components/ui";
 import { FuelEntryForm } from "@/components/app/FuelEntryForm";
@@ -17,12 +17,14 @@ export default async function NewFuelPage({
 }) {
   const user = await getSessionUser();
   if (!user) notFound();
-  if (user.role !== "driver") redirect("/dashboard");
 
   const { vehicle: vehicleId } = await searchParams;
   const { d } = await getServerLocale();
 
-  const vehicles = await getDriverVehicles(user.id);
+  const vehicles =
+    user.role === "owner"
+      ? await getCompanyVehicles(user.companyId)
+      : await getDriverVehicles(user.id);
 
   if (vehicles.length === 0) {
     return (
@@ -67,7 +69,11 @@ export default async function NewFuelPage({
   }
 
   const vehicle = await getVehicleById(vehicleId);
-  if (!vehicle || vehicle.driverId !== user.id) {
+  if (
+    !vehicle ||
+    vehicle.companyId !== user.companyId ||
+    (user.role === "driver" && vehicle.driverId !== user.id)
+  ) {
     return (
       <div className="mx-auto max-w-lg">
         <EmptyState

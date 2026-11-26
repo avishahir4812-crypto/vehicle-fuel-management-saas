@@ -11,7 +11,7 @@ export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   try {
-    const user = await requireUser("driver");
+    const user = await requireUser();
     const rl = rateLimit({ key: `fuel:${user.id}`, limit: 20, windowMs: 60_000 });
     if (!rl.ok) return Response.json({ error: "rate_limited" }, { status: 429 });
 
@@ -23,7 +23,7 @@ export async function POST(req: Request) {
       .where(and(eq(vehicles.id, data.vehicleId), eq(vehicles.companyId, user.companyId)))
       .limit(1);
     if (!vehicle) return Response.json({ error: "not_found" }, { status: 404 });
-    if (vehicle.driverId !== user.id) {
+    if (user.role === "driver" && vehicle.driverId !== user.id) {
       return Response.json({ error: "not_assigned" }, { status: 403 });
     }
 
@@ -70,7 +70,9 @@ export async function POST(req: Request) {
       .values({
         companyId: user.companyId,
         vehicleId: data.vehicleId,
-        driverId: user.id,
+        driverId: user.role === "owner" ? (vehicle.driverId ?? user.id) : user.id,
+        loggedById: user.id,
+        loggedByRole: user.role,
         fuelRate: data.fuelRate.toFixed(2),
         quantityLiters: data.quantityLiters.toFixed(2),
         totalAmount: data.totalAmount.toFixed(2),

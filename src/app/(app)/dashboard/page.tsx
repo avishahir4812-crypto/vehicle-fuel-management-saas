@@ -136,7 +136,18 @@ export default async function DashboardPage() {
           </h1>
           <p className="mt-1 text-[15px] text-ink-soft">{d["dash.ownerSub"]}</p>
         </div>
-        <AddVehicleButton />
+        <div className="flex items-center gap-2">
+          {ov.cards.length > 0 && (
+            <Link
+              href={ov.cards.length === 1 ? `/fuel/new?vehicle=${ov.cards[0].id}` : "/fuel/new"}
+              className="inline-flex h-11 items-center gap-2 rounded-xl bg-brand px-5 text-sm font-bold text-night shadow-amber transition hover:bg-brand-deep hover:text-white"
+            >
+              <Fuel className="size-4" />
+              {d["vdetail.addEntry"]}
+            </Link>
+          )}
+          <AddVehicleButton />
+        </div>
       </header>
 
       <section className="mt-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -229,9 +240,14 @@ export default async function DashboardPage() {
                   <p className="text-xs text-ink-soft">
                     {formatDate(e.createdAt, locale)} · {formatLiters(e.quantityLiters)} · {e.odometerKm.toLocaleString("en-IN")} km
                   </p>
+                  {e.loggedByRole === "owner" && (
+                    <span className="mt-1 inline-flex rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                      Owner
+                    </span>
+                  )}
                 </div>
                 <span className="hidden items-center gap-1.5 text-xs font-semibold text-ink-soft sm:flex">
-                  <Avatar name={e.driverName} id={e.driverId} size="sm" />
+                  <Avatar name={e.driverName} id={e.driverId ?? e.loggedById ?? ""} size="sm" />
                   {e.driverName}
                 </span>
                 <p className="text-sm font-bold text-ink">{formatINR(e.totalAmount, true)}</p>
