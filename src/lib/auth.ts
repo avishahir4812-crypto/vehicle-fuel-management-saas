@@ -5,8 +5,8 @@ import { randomBytes, scryptSync, timingSafeEqual, createHash } from "crypto";
 import { db } from "@/db";
 import { sessions, users, type User } from "@/db/schema";
 import { eq, and, gt } from "drizzle-orm";
+import { SESSION_COOKIE_NAME, SESSION_TOKEN_PATTERN } from "@/lib/session-constants";
 
-const SESSION_COOKIE = "fm_session";
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30; // 30 days
 
 /* ---------- Password hashing (Node built-in scrypt) ---------- */
@@ -40,7 +40,7 @@ export async function createSession(userId: string): Promise<void> {
     expiresAt,
   });
   const store = await cookies();
-  store.set(SESSION_COOKIE, token, {
+  store.set(SESSION_COOKIE_NAME, token, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
@@ -51,17 +51,17 @@ export async function createSession(userId: string): Promise<void> {
 
 export async function destroySession(): Promise<void> {
   const store = await cookies();
-  const token = store.get(SESSION_COOKIE)?.value;
+  const token = store.get(SESSION_COOKIE_NAME)?.value;
   if (token) {
     await db.delete(sessions).where(eq(sessions.tokenHash, hashToken(token)));
   }
-  store.delete(SESSION_COOKIE);
+  store.delete(SESSION_COOKIE_NAME);
 }
 
 export const getSessionUser = cache(async function getSessionUser(): Promise<User | null> {
   const store = await cookies();
-  const token = store.get(SESSION_COOKIE)?.value;
-  if (!token) return null;
+  const token = store.get(SESSION_COOKIE_NAME)?.value;
+  if (!token || !SESSION_TOKEN_PATTERN.test(token)) return null;
   const rows = await db
     .select({ user: users, session: sessions })
     .from(sessions)

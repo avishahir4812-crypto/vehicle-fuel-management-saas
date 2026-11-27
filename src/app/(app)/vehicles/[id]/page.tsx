@@ -52,7 +52,7 @@ export default async function VehicleDetailPage({
 
   const offset = Math.max(-36, Math.min(0, Number.parseInt(month ?? "0", 10) || 0));
   const [analytics, driverRow, ownerDriverList] = await Promise.all([
-    getVehicleAnalytics(vehicle.id, offset),
+    getVehicleAnalytics(vehicle.id, offset, user.companyId),
     vehicle.driverId
       ? db
           .select({ name: users.name })

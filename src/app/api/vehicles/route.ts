@@ -3,6 +3,7 @@ import { vehicles } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
 import { jsonError, readJson } from "@/lib/api";
 import { vehicleSchema } from "@/lib/validation";
+import { invalidateCompanyCache } from "@/lib/data-cache";
 
 export const runtime = "nodejs";
 
@@ -22,6 +23,7 @@ export async function POST(req: Request) {
           fuelType: data.fuelType,
         })
         .returning();
+      invalidateCompanyCache(user.companyId);
       return Response.json({ vehicle }, { status: 201 });
     } catch (err) {
       if (err instanceof Error && err.message.includes("vehicles_reg_unique")) {

@@ -177,13 +177,18 @@ export function AppShell({ user, children }: { user: ShellUser; children: ReactN
             </Link>
           )}
           <div className="flex items-center gap-3 rounded-xl p-2">
-            <Avatar name={user.name} id={user.id} />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-bold text-ink">{user.name}</p>
-              <p className="text-xs font-medium capitalize text-ink-soft">
-                {t(user.role === "owner" ? "common.owner" : "common.driver")}
-              </p>
-            </div>
+            <Link
+              href="/settings"
+              className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-lg transition-colors hover:bg-ink/[0.04]"
+            >
+              <Avatar name={user.name} id={user.id} />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-bold text-ink">{user.name}</p>
+                <p className="text-xs font-medium capitalize text-ink-soft">
+                  {t(user.role === "owner" ? "common.owner" : "common.driver")}
+                </p>
+              </div>
+            </Link>
             <LanguageMenu compact />
           </div>
           <button

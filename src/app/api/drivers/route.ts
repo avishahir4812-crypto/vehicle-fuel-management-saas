@@ -4,6 +4,7 @@ import { hashPassword, requireUser } from "@/lib/auth";
 import { jsonError, readJson } from "@/lib/api";
 import { createDriverSchema } from "@/lib/validation";
 import { ensureCompanyThread } from "@/lib/chat";
+import { invalidateCompanyCache } from "@/lib/data-cache";
 import { rateLimit } from "@/lib/rate-limit";
 import { eq, or } from "drizzle-orm";
 
@@ -47,6 +48,7 @@ export async function POST(req: Request) {
       })
       .returning();
 
+    invalidateCompanyCache(owner.companyId);
     await ensureCompanyThread(owner.companyId);
 
     return Response.json(

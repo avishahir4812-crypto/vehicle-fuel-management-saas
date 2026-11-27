@@ -2,6 +2,10 @@ import { db } from "@/db";
 import { users, sessions, vehicles, fuelEntries } from "@/db/schema";
 import { requireUser, ApiError } from "@/lib/auth";
 import { jsonError, readJson } from "@/lib/api";
+import {
+  invalidateCompanyCache,
+  invalidateDriverCache,
+} from "@/lib/data-cache";
 import { idParamSchema, updateDriverSchema } from "@/lib/validation";
 import { and, eq, count } from "drizzle-orm";
 
@@ -79,6 +83,9 @@ export async function PATCH(req: Request, { params }: RouteParams) {
 
     if (!updatedDriver) throw new ApiError(404, "not_found");
 
+    invalidateCompanyCache(owner.companyId);
+    invalidateDriverCache(id);
+
     return Response.json({ driver: updatedDriver });
   } catch (error) {
     return jsonError(error);
@@ -155,6 +162,9 @@ export async function DELETE(_req: Request, { params }: RouteParams) {
           eq(users.companyId, owner.companyId)
         )
       );
+
+    invalidateCompanyCache(owner.companyId);
+    invalidateDriverCache(id);
 
     return Response.json({ ok: true, message: "driver_deleted" }, { status: 200 });
   } catch (error) {

@@ -5,6 +5,11 @@ import { jsonError, readJson } from "@/lib/api";
 import { fuelEntrySchema } from "@/lib/validation";
 import { rateLimit } from "@/lib/rate-limit";
 import { detectAnomalies, encodeAnomalies } from "@/lib/anomaly";
+import {
+  invalidateCompanyCache,
+  invalidateDriverCache,
+  invalidateVehicleCache,
+} from "@/lib/data-cache";
 import { and, desc, eq } from "drizzle-orm";
 
 export const runtime = "nodejs";
@@ -84,6 +89,10 @@ export async function POST(req: Request) {
         anomaly: encodeAnomalies(anomalies),
       })
       .returning();
+
+    invalidateCompanyCache(user.companyId);
+    invalidateDriverCache(entry.driverId ?? user.id);
+    invalidateVehicleCache(data.vehicleId);
 
     return Response.json({ entry, anomalies }, { status: 201 });
   } catch (error) {

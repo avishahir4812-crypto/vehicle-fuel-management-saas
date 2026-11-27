@@ -7,6 +7,7 @@ import { signupSchema } from "@/lib/validation";
 import { findCompanyByNameAndKey, generateUniqueJoinKey } from "@/lib/company";
 import { FREE_FOREVER_PHONES, trialEnd } from "@/lib/billing";
 import { ensureCompanyThread } from "@/lib/chat";
+import { invalidateCompanyCache } from "@/lib/data-cache";
 import { eq, or } from "drizzle-orm";
 
 export const runtime = "nodejs";
@@ -74,6 +75,7 @@ export async function POST(req: Request) {
       })
       .returning();
 
+    invalidateCompanyCache(companyId);
     await ensureCompanyThread(companyId);
     await createSession(user.id);
 

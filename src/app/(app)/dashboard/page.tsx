@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 import {
   AlertTriangle,
   ArrowRight,
@@ -40,7 +40,7 @@ function TrendChip({ current, previous, label }: { current: number; previous: nu
 
 export default async function DashboardPage() {
   const [user, { locale, d }] = await Promise.all([getSessionUser(), getServerLocale()]);
-  if (!user) notFound();
+  if (!user) redirect("/login?expired=1");
 
   /* ------------------------------ DRIVER ------------------------------ */
   if (user.role === "driver") {

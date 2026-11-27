@@ -59,7 +59,7 @@ export const payments = pgTable(
     reference: text("reference").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("payments_company_idx").on(t.companyId, t.createdAt)]
+  (t) => [index("payments_company_idx").on(t.companyId, t.createdAt.desc())]
 );
 
 export const users = pgTable(
@@ -122,8 +122,8 @@ export const vehicles = pgTable(
   },
   (t) => [
     uniqueIndex("vehicles_reg_unique").on(t.registrationNumber),
-    index("vehicles_company_idx").on(t.companyId),
-    index("vehicles_driver_idx").on(t.driverId),
+    index("vehicles_company_idx").on(t.companyId, t.createdAt.desc()),
+    index("vehicles_driver_idx").on(t.driverId, t.createdAt.desc()),
   ]
 );
 
@@ -153,9 +153,9 @@ export const fuelEntries = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    index("fuel_vehicle_idx").on(t.vehicleId, t.createdAt),
-    index("fuel_company_idx").on(t.companyId, t.createdAt),
-    index("fuel_driver_idx").on(t.driverId, t.createdAt),
+    index("fuel_vehicle_idx").on(t.vehicleId, t.createdAt.desc()),
+    index("fuel_company_idx").on(t.companyId, t.createdAt.desc()),
+    index("fuel_driver_idx").on(t.driverId, t.createdAt.desc()),
   ]
 );
 
@@ -185,7 +185,7 @@ export const messages = pgTable(
     body: text("body").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("messages_conversation_idx").on(t.conversationId, t.createdAt)]
+  (t) => [index("messages_conversation_idx").on(t.conversationId, t.createdAt.desc())]
 );
 
 export const conversationReads = pgTable(

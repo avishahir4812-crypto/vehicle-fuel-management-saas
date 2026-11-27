@@ -2,6 +2,10 @@ import { db } from "@/db";
 import { users, vehicles } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
 import { jsonError, readJson } from "@/lib/api";
+import {
+  invalidateCompanyCache,
+  invalidateDriverCache,
+} from "@/lib/data-cache";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
@@ -23,7 +27,7 @@ export async function PATCH(
 
     // 1️⃣ Vehicle owner ki company ka hona chahiye
     const [vehicle] = await db
-      .select({ id: vehicles.id })
+      .select({ id: vehicles.id, driverId: vehicles.driverId })
       .from(vehicles)
       .where(
         and(
@@ -61,6 +65,10 @@ export async function PATCH(
       .update(vehicles)
       .set({ driverId: data.driverId })
       .where(eq(vehicles.id, vehicleId));
+
+    invalidateCompanyCache(owner.companyId);
+    if (vehicle.driverId) invalidateDriverCache(vehicle.driverId);
+    if (data.driverId) invalidateDriverCache(data.driverId);
 
     return Response.json({ ok: true });
   } catch (error) {

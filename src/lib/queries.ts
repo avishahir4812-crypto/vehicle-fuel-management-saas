@@ -1,4 +1,5 @@
 import "server-only";
+import { unstable_cache } from "next/cache";
 import { db } from "@/db";
 import {
   fuelEntries,
@@ -10,6 +11,21 @@ import {
 } from "@/db/schema";
 import { and, desc, eq, gte, lt, inArray, sql } from "drizzle-orm";
 import { pyGet } from "@/lib/py-client";
+import { dataCacheTags } from "@/lib/data-cache";
+
+const DATA_CACHE_SECONDS = 60;
+
+function cachedQuery<T>(
+  keyParts: string[],
+  tags: string[],
+  load: () => Promise<T>,
+  revive: (value: T) => T = (value) => value
+): Promise<T> {
+  return unstable_cache(load, keyParts, {
+    tags,
+    revalidate: DATA_CACHE_SECONDS,
+  })().then(revive);
+}
 
 /* ---------- Python service payload shapes ---------- */
 
@@ -48,6 +64,20 @@ export type FuelEntryWithNames = FuelEntry & {
 type JoinedRow = { entry: FuelEntry; vehicleName: string; driverName: string };
 const flatten = (rows: JoinedRow[]): FuelEntryWithNames[] =>
   rows.map((r) => ({ ...r.entry, vehicleName: r.vehicleName, driverName: r.driverName }));
+
+function reviveDate(value: Date): Date {
+  return value instanceof Date ? value : new Date(String(value));
+}
+
+const reviveFuelEntry = (entry: FuelEntryWithNames): FuelEntryWithNames => ({
+  ...entry,
+  createdAt: reviveDate(entry.createdAt),
+});
+
+const reviveVehicleCard = (card: VehicleCard): VehicleCard => ({
+  ...card,
+  createdAt: reviveDate(card.createdAt),
+});
 
 const entrySelect = {
   entry: fuelEntries,
@@ -143,7 +173,20 @@ export type OwnerOverview = {
   cards: VehicleCard[];
 };
 
-export async function getOwnerOverview(companyId: string): Promise<OwnerOverview> {
+export function getOwnerOverview(companyId: string): Promise<OwnerOverview> {
+  return cachedQuery(
+    ["owner-overview", companyId],
+    [dataCacheTags.company(companyId)],
+    () => getOwnerOverviewUncached(companyId),
+    (overview) => ({
+      ...overview,
+      recent: overview.recent.map(reviveFuelEntry),
+      cards: overview.cards.map(reviveVehicleCard),
+    })
+  );
+}
+
+async function getOwnerOverviewUncached(companyId: string): Promise<OwnerOverview> {
   // Fast path — Python analytics service.
   const py = await pyGet<
     Omit<OwnerOverview, "recent" | "cards"> & { recent: PyEntry[]; cards: PyCard[] }
@@ -152,11 +195,17 @@ export async function getOwnerOverview(companyId: string): Promise<OwnerOverview
     return { ...py, recent: reviveEntries(py.recent), cards: reviveCards(py.cards) };
   }
 
-  const fleet = await db
-    .select()
-    .from(vehicles)
-    .where(eq(vehicles.companyId, companyId))
-    .orderBy(desc(vehicles.createdAt));
+  const [fleet, driverRow] = await Promise.all([
+    db
+      .select()
+      .from(vehicles)
+      .where(eq(vehicles.companyId, companyId))
+      .orderBy(desc(vehicles.createdAt)),
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(users)
+      .where(and(eq(users.companyId, companyId), eq(users.role, "driver"))),
+  ]);
   const ids = fleet.map((v) => v.id);
 
   const { start, end } = monthRange(0);
@@ -196,13 +245,7 @@ export async function getOwnerOverview(companyId: string): Promise<OwnerOverview
     flagged = flaggedRow[0]?.count ?? 0;
   }
 
-  const [driverRow, cards] = await Promise.all([
-    db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(users)
-      .where(and(eq(users.companyId, companyId), eq(users.role, "driver"))),
-    vehicleCards(fleet),
-  ]);
+  const cards = await vehicleCards(fleet);
 
   return {
     spend: current.spend,
@@ -225,7 +268,20 @@ export type DriverOverview = {
   monthEntries: number;
 };
 
-export async function getDriverOverview(driverId: string): Promise<DriverOverview> {
+export function getDriverOverview(driverId: string): Promise<DriverOverview> {
+  return cachedQuery(
+    ["driver-overview", driverId],
+    [dataCacheTags.driver(driverId)],
+    () => getDriverOverviewUncached(driverId),
+    (overview) => ({
+      ...overview,
+      recent: overview.recent.map(reviveFuelEntry),
+      cards: overview.cards.map(reviveVehicleCard),
+    })
+  );
+}
+
+async function getDriverOverviewUncached(driverId: string): Promise<DriverOverview> {
   const py = await pyGet<
     Omit<DriverOverview, "recent" | "cards"> & { recent: PyEntry[]; cards: PyCard[] }
   >("/analytics/driver-overview", { driver_id: driverId });
@@ -272,22 +328,36 @@ export async function getDriverOverview(driverId: string): Promise<DriverOvervie
 
 /* ---------- vehicles ---------- */
 
-export async function getCompanyVehicles(companyId: string): Promise<VehicleCard[]> {
-  const rows = await db
-    .select()
-    .from(vehicles)
-    .where(eq(vehicles.companyId, companyId))
-    .orderBy(desc(vehicles.createdAt));
-  return vehicleCards(rows);
+export function getCompanyVehicles(companyId: string): Promise<VehicleCard[]> {
+  return cachedQuery(
+    ["company-vehicles", companyId],
+    [dataCacheTags.company(companyId)],
+    async () => {
+      const rows = await db
+        .select()
+        .from(vehicles)
+        .where(eq(vehicles.companyId, companyId))
+        .orderBy(desc(vehicles.createdAt));
+      return vehicleCards(rows);
+    },
+    (cards) => cards.map(reviveVehicleCard)
+  );
 }
 
-export async function getDriverVehicles(driverId: string): Promise<VehicleCard[]> {
-  const rows = await db
-    .select()
-    .from(vehicles)
-    .where(eq(vehicles.driverId, driverId))
-    .orderBy(desc(vehicles.createdAt));
-  return vehicleCards(rows);
+export function getDriverVehicles(driverId: string): Promise<VehicleCard[]> {
+  return cachedQuery(
+    ["driver-vehicles", driverId],
+    [dataCacheTags.driver(driverId)],
+    async () => {
+      const rows = await db
+        .select()
+        .from(vehicles)
+        .where(eq(vehicles.driverId, driverId))
+        .orderBy(desc(vehicles.createdAt));
+      return vehicleCards(rows);
+    },
+    (cards) => cards.map(reviveVehicleCard)
+  );
 }
 
 export async function getVehicleById(id: string) {
@@ -295,7 +365,25 @@ export async function getVehicleById(id: string) {
   return vehicle ?? null;
 }
 
-export async function getVehicleAnalytics(vehicleId: string, offset: number) {
+export function getVehicleAnalytics(
+  vehicleId: string,
+  offset: number,
+  companyId: string
+) {
+  return cachedQuery(
+    ["vehicle-analytics", companyId, vehicleId, String(offset)],
+    [dataCacheTags.company(companyId), dataCacheTags.vehicle(vehicleId)],
+    () => getVehicleAnalyticsUncached(vehicleId, offset),
+    (analytics) => ({
+      ...analytics,
+      entries: analytics.entries.map(reviveFuelEntry),
+      monthStart: reviveDate(analytics.monthStart),
+      monthEnd: reviveDate(analytics.monthEnd),
+    })
+  );
+}
+
+async function getVehicleAnalyticsUncached(vehicleId: string, offset: number) {
   const py = await pyGet<{
     entries: PyEntry[];
     lastOdometer: number | null;
@@ -345,7 +433,29 @@ export type CalendarMonth = {
  * All entries in one month, scoped to the company (owner) or driver.
  * Powers the calendar view — any past month, any day.
  */
-export async function getCalendarMonth(
+export function getCalendarMonth(
+  scope: { companyId: string } | { driverId: string },
+  offset: number
+): Promise<CalendarMonth> {
+  const scopeKey =
+    "companyId" in scope ? `company-${scope.companyId}` : `driver-${scope.driverId}`;
+  const scopeTag =
+    "companyId" in scope
+      ? dataCacheTags.company(scope.companyId)
+      : dataCacheTags.driver(scope.driverId);
+  return cachedQuery(
+    ["calendar-month", scopeKey, String(offset)],
+    [scopeTag],
+    () => getCalendarMonthUncached(scope, offset),
+    (month) => ({
+      ...month,
+      entries: month.entries.map(reviveFuelEntry),
+      monthStart: reviveDate(month.monthStart),
+    })
+  );
+}
+
+async function getCalendarMonthUncached(
   scope: { companyId: string } | { driverId: string },
   offset: number
 ): Promise<CalendarMonth> {
@@ -401,39 +511,59 @@ export type DriverWithVehicles = Pick<User, "id" | "name" | "phone" | "email" | 
   assignedVehicles: Vehicle[];
 };
 
-export async function getCompanyDrivers(companyId: string): Promise<DriverWithVehicles[]> {
-  const [drivers, owned] = await Promise.all([
-    db
-      .select({
-        id: users.id,
-        name: users.name,
-        phone: users.phone,
-        email: users.email,
-        createdAt: users.createdAt,
-      })
-      .from(users)
-      .where(and(eq(users.companyId, companyId), eq(users.role, "driver")))
-      .orderBy(users.name),
-    db
-      .select()
-      .from(vehicles)
-      .where(eq(vehicles.companyId, companyId)),
-  ]);
+export function getCompanyDrivers(companyId: string): Promise<DriverWithVehicles[]> {
+  return cachedQuery(
+    ["company-drivers", companyId],
+    [dataCacheTags.company(companyId)],
+    async () => {
+      const [drivers, owned] = await Promise.all([
+        db
+          .select({
+            id: users.id,
+            name: users.name,
+            phone: users.phone,
+            email: users.email,
+            createdAt: users.createdAt,
+          })
+          .from(users)
+          .where(and(eq(users.companyId, companyId), eq(users.role, "driver")))
+          .orderBy(users.name),
+        db
+          .select()
+          .from(vehicles)
+          .where(eq(vehicles.companyId, companyId)),
+      ]);
 
-  if (drivers.length === 0) return [];
+      if (drivers.length === 0) return [];
 
-  return drivers.map((d) => ({
-    ...d,
-    assignedVehicles: owned.filter((v) => v.driverId === d.id),
-  }));
+      return drivers.map((driver) => ({
+        ...driver,
+        assignedVehicles: owned.filter((vehicle) => vehicle.driverId === driver.id),
+      }));
+    },
+    (drivers) =>
+      drivers.map((driver) => ({
+        ...driver,
+        createdAt: reviveDate(driver.createdAt),
+        assignedVehicles: driver.assignedVehicles.map((vehicle) => ({
+          ...vehicle,
+          createdAt: reviveDate(vehicle.createdAt),
+        })),
+      }))
+  );
 }
 
 /** Driver picker for vehicle assignment — company members only. */
-export async function getAssignableDrivers(companyId: string) {
-  return db
-    .select({ id: users.id, name: users.name, phone: users.phone })
-    .from(users)
-    .where(and(eq(users.companyId, companyId), eq(users.role, "driver")))
-    .orderBy(users.name)
-    .limit(200);
+export function getAssignableDrivers(companyId: string) {
+  return cachedQuery(
+    ["assignable-drivers", companyId],
+    [dataCacheTags.company(companyId)],
+    () =>
+      db
+        .select({ id: users.id, name: users.name, phone: users.phone })
+        .from(users)
+        .where(and(eq(users.companyId, companyId), eq(users.role, "driver")))
+        .orderBy(users.name)
+        .limit(200)
+  );
 }
